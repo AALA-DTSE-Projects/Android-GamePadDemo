@@ -19,6 +19,7 @@ class GameService : Service() {
         const val DOWN = "down"
         const val LEFT = "left"
         const val RIGHT = "right"
+        const val FINISH = "finish"
     }
 
     override fun onBind(intent: Intent?): IBinder {
@@ -49,7 +50,8 @@ class GameService : Service() {
                 UP,
                 DOWN,
                 LEFT,
-                RIGHT-> {
+                RIGHT,
+                FINISH -> {
                     EventBus.getDefault().post(
                         HandleEvent(deviceId, action)
                     )

@@ -1,6 +1,5 @@
 package jp.huawei.a2hdemo.app
 
-import android.animation.ObjectAnimator
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
@@ -8,6 +7,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Process
+import android.view.View
+import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
@@ -31,7 +32,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val DURATION = 1000L
-        const val STEP = 10.0f
+        const val STEP = 100.0f
         const val DISTRIBUTED_PERMISSION_CODE = 0
     }
 
@@ -75,28 +76,31 @@ class MainActivity : AppCompatActivity() {
                 players[deviceId] = if (isInit) binding.human1 else binding.human2
             }
             GameService.UP -> {
-                ObjectAnimator.ofFloat(imageView, "translationY", -STEP).apply {
+                imageView?.animate()?.translationY(-STEP)?.apply {
                     duration = DURATION
                     start()
                 }
             }
             GameService.DOWN -> {
-                ObjectAnimator.ofFloat(imageView, "translationY", STEP).apply {
+                imageView?.animate()?.translationY(STEP)?.apply {
                     duration = DURATION
                     start()
                 }
             }
             GameService.LEFT -> {
-                ObjectAnimator.ofFloat(imageView, "translationX", -STEP).apply {
+                imageView?.animate()?.translationX(-STEP)?.apply {
                     duration = DURATION
                     start()
                 }
             }
             GameService.RIGHT -> {
-                ObjectAnimator.ofFloat(imageView, "translationX", STEP).apply {
+                imageView?.animate()?.translationX(STEP)?.apply {
                     duration = DURATION
                     start()
                 }
+            }
+            GameService.FINISH -> {
+                finish()
             }
         }
     }
@@ -104,6 +108,20 @@ class MainActivity : AppCompatActivity() {
     private fun setupBinding() {
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         binding.numOfPlayers = 1
+        disableClipOnParents(binding.human1)
+        disableClipOnParents(binding.human2)
+    }
+
+    private fun disableClipOnParents(v: View) {
+        if (v.parent == null) {
+            return
+        }
+        if (v is ViewGroup) {
+            v.clipChildren = false
+        }
+        if (v.parent is View) {
+            disableClipOnParents(v.parent as View)
+        }
     }
 
     private fun init() {
