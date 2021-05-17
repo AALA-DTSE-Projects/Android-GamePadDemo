@@ -76,25 +76,25 @@ class MainActivity : AppCompatActivity() {
                 players[deviceId] = if (isInit) binding.human1 else binding.human2
             }
             GameService.UP -> {
-                imageView?.animate()?.translationY(-STEP)?.apply {
+                imageView?.animate()?.translationYBy(-STEP)?.apply {
                     duration = DURATION
                     start()
                 }
             }
             GameService.DOWN -> {
-                imageView?.animate()?.translationY(STEP)?.apply {
+                imageView?.animate()?.translationYBy(STEP)?.apply {
                     duration = DURATION
                     start()
                 }
             }
             GameService.LEFT -> {
-                imageView?.animate()?.translationX(-STEP)?.apply {
+                imageView?.animate()?.translationXBy(-STEP)?.apply {
                     duration = DURATION
                     start()
                 }
             }
             GameService.RIGHT -> {
-                imageView?.animate()?.translationX(STEP)?.apply {
+                imageView?.animate()?.translationXBy(STEP)?.apply {
                     duration = DURATION
                     start()
                 }
