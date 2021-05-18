@@ -1,11 +1,14 @@
 package jp.huawei.a2hdemo.app
 
 import android.app.AlertDialog
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import android.os.Process
 import android.view.View
 import android.view.ViewGroup
@@ -22,18 +25,23 @@ import jp.huawei.a2hdemo.local.HandleEvent
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
-
+import com.huawei.ohos.localability.AbilityUtils
+import jp.huawei.a2hdemo.remote.ResultServiceProxy
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var config: Config
     private lateinit var players: HashMap<String, ImageView>
+    private lateinit var serviceConnections: HashMap<String, ServiceConnection>
+    private lateinit var resultServiceProxies: HashMap<String, ResultServiceProxy>
 
     companion object {
         const val DURATION = 1000L
         const val STEP = 100.0f
         const val DISTRIBUTED_PERMISSION_CODE = 0
+        const val HARMONY_BUNDLE_NAME = "com.huawei.gamepaddemo"
+        const val HARMONY_ABILITY_NAME = "com.huawei.gamepaddemo.ResultServiceAbility"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -79,27 +87,43 @@ class MainActivity : AppCompatActivity() {
                 imageView?.animate()?.translationYBy(-STEP)?.apply {
                     duration = DURATION
                     start()
+                }?.withEndAction {
+                    updateLocation(deviceId, imageView)
                 }
             }
             GameService.DOWN -> {
                 imageView?.animate()?.translationYBy(STEP)?.apply {
                     duration = DURATION
                     start()
+                }?.withEndAction {
+                    updateLocation(deviceId, imageView)
                 }
             }
             GameService.LEFT -> {
                 imageView?.animate()?.translationXBy(-STEP)?.apply {
                     duration = DURATION
                     start()
+                }?.withEndAction {
+                    updateLocation(deviceId, imageView)
                 }
             }
             GameService.RIGHT -> {
                 imageView?.animate()?.translationXBy(STEP)?.apply {
                     duration = DURATION
                     start()
+                }?.withEndAction {
+                    updateLocation(deviceId, imageView)
                 }
             }
             GameService.FINISH -> {
+                resultServiceProxies.map {
+                    it.value.disconnect(it.key)
+                }
+                if (serviceConnections.containsKey(deviceId)) {
+                    serviceConnections[deviceId]?.let {
+                        AbilityUtils.disconnectAbility(this, it)
+                    }
+                }
                 finish()
             }
         }
@@ -128,6 +152,8 @@ class MainActivity : AppCompatActivity() {
         val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
         config = Config(sharedPreferences)
         players = hashMapOf()
+        serviceConnections = hashMapOf()
+        resultServiceProxies = hashMapOf()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             requestDistributedPermission()
         }
@@ -202,6 +228,38 @@ class MainActivity : AppCompatActivity() {
     private fun getData(intent: Intent) {
         val deviceId = intent.getStringExtra(GameService.DEVICE_ID_KEY)
         players[deviceId ?: return] = binding.human1
+        updateLocation(deviceId, binding.human1)
+    }
+
+    private fun connectToHarmonyService(deviceId: String, callback: (ResultServiceProxy) -> Unit)  {
+        val intent = Intent()
+        val componentName = ComponentName(HARMONY_BUNDLE_NAME, HARMONY_ABILITY_NAME)
+        intent.component = componentName
+        val connection = object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+                val resultServiceProxy = ResultServiceProxy(service)
+                resultServiceProxies[deviceId] = resultServiceProxy
+                serviceConnections[deviceId] = this
+                callback.invoke(resultServiceProxy)
+            }
+
+            override fun onServiceDisconnected(name: ComponentName?) {
+                resultServiceProxies.remove(deviceId)
+                serviceConnections.remove(deviceId)
+            }
+        }
+        AbilityUtils.connectAbility(this, intent, connection)
+    }
+
+    private fun updateLocation(deviceId: String, view: View) {
+        if (!resultServiceProxies.containsKey(deviceId)) {
+            connectToHarmonyService(deviceId) {
+                it.sendLocation(deviceId, view.x, view.y)
+            }
+        } else {
+            val resultServiceProxy = resultServiceProxies[deviceId]
+            resultServiceProxy?.sendLocation(deviceId, view.x, view.y)
+        }
     }
 
 }
