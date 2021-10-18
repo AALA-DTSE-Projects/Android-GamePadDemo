@@ -27,6 +27,8 @@ import jp.huawei.a2hdemo.remote.ResultServiceProxy
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
+import kotlin.math.cos
+import kotlin.math.sin
 
 class MainActivity : AppCompatActivity() {
 
@@ -38,7 +40,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val DURATION = 1000L
-        const val STEP = 100.0f
+        const val STEP = 50.0f
         const val DISTRIBUTED_PERMISSION_CODE = 0
         const val HARMONY_BUNDLE_NAME = "com.huawei.gamepaddemo"
         const val HARMONY_ABILITY_NAME = "com.huawei.gamepaddemo.ResultServiceAbility"
@@ -132,6 +134,25 @@ class MainActivity : AppCompatActivity() {
             }
             GameService.FINISH -> {
                 finish()
+            }
+            GameService.SHOOT -> {
+                Toast.makeText(this, "Shoot with force: ${event.force}", Toast.LENGTH_SHORT).show()
+            }
+            GameService.MOVE -> {
+                event.angle?.let {
+                    val angle = Math.toRadians(it.toDouble())
+                    val deltaX = (STEP * cos(angle)).toFloat()
+                    val deltaY = (STEP * sin(angle)).toFloat()
+                    imageView?.animate()?.xBy(deltaX)?.yBy(-deltaY)?.apply {
+                        duration = DURATION
+                        start()
+                    }?.withEndAction {
+                        updateLocation(deviceId, imageView)
+                    }
+                }
+            }
+            GameService.PAUSE -> {
+                Toast.makeText(this, "Pause", Toast.LENGTH_LONG).show()
             }
         }
     }

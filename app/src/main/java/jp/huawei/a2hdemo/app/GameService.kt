@@ -20,6 +20,9 @@ class GameService : Service() {
         const val LEFT = "left"
         const val RIGHT = "right"
         const val FINISH = "finish"
+        const val SHOOT = "shoot"
+        const val MOVE = "move"
+        const val PAUSE = "pause"
     }
 
     override fun onBind(intent: Intent?): IBinder {
@@ -44,6 +47,7 @@ class GameService : Service() {
                     } else {
                         val intent = Intent(this@GameService, MainActivity::class.java)
                         intent.putExtra(DEVICE_ID_KEY, deviceId)
+                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         startActivity(intent)
                     }
                 }
@@ -57,6 +61,27 @@ class GameService : Service() {
                     )
                 }
             }
+        }
+
+        override fun shoot(deviceId: String?, force: Float) {
+            deviceId ?: return
+            EventBus.getDefault().post(
+                HandleEvent(deviceId, SHOOT, force = force)
+            )
+        }
+
+        override fun move(deviceId: String?, angle: Int) {
+            deviceId ?: return
+            EventBus.getDefault().post(
+                HandleEvent(deviceId, MOVE, angle = angle)
+            )
+        }
+
+        override fun pause(deviceId: String?) {
+            deviceId ?: return
+            EventBus.getDefault().post(
+                HandleEvent(deviceId, PAUSE)
+            )
         }
     }
 }
