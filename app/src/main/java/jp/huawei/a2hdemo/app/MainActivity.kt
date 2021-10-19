@@ -136,7 +136,7 @@ class MainActivity : AppCompatActivity() {
                 finish()
             }
             GameService.SHOOT -> {
-                Toast.makeText(this, "Shoot with force: ${event.force}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "$deviceId has shoot with force: ${event.force}", Toast.LENGTH_SHORT).show()
             }
             GameService.MOVE -> {
                 event.angle?.let {
@@ -152,7 +152,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             GameService.PAUSE -> {
-                Toast.makeText(this, "Pause", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Pause from $deviceId", Toast.LENGTH_LONG).show()
             }
         }
     }
