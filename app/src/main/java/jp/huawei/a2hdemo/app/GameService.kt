@@ -22,63 +22,26 @@ class GameService : Service() {
         const val UNITY_GAME_OBJECT_NAME = "HuaweiController"
         const val ADD = "Add"
         const val MOVE = "Move"
-        const val BUTTON_PRESS = "ButtonPress"
-        const val BUTTON_RELEASE = "ButtonRelease"
+        const val BUTTON_CLICK = "ButtonClick"
         const val REMOVE = "Remove"
         const val HARMONY_BUNDLE_NAME = "com.huawei.gamepaddemo"
         const val HARMONY_ABILITY_NAME = "com.huawei.gamepaddemo.ResultServiceAbility"
     }
 
-    private var serviceConnection: ServiceConnection? = null
+    private var mApplication: Application? = null
+    private var activityManager: ActivityManager? = null
     private var resultServiceProxy: ResultServiceProxy? = null
+    private var deviceId: String? = null
 
     override fun onBind(intent: Intent?): IBinder {
+        mApplication = application
+        activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         return binder
     }
 
-    private fun isApplicationRunning(): Boolean {
-        val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-        val processes = am.runningAppProcesses
-        processes.forEach {
-            if (it.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
-                it.pkgList.forEach { process ->
-                    if (process == packageName) {
-                        return true
-                    }
-                }
-            }
-        }
-        return false
-    }
-
-    private fun connectToHarmonyService(callback: (ResultServiceProxy) -> Unit)  {
-        val intent = Intent()
-        val componentName = ComponentName(HARMONY_BUNDLE_NAME, HARMONY_ABILITY_NAME)
-        intent.component = componentName
-        val connection = object : ServiceConnection {
-            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-                resultServiceProxy = ResultServiceProxy(service)
-                serviceConnection = this
-                callback.invoke(resultServiceProxy ?: return)
-            }
-
-            override fun onServiceDisconnected(name: ComponentName?) {
-                resultServiceProxy = null
-                serviceConnection = null
-            }
-        }
-        AbilityUtils.connectAbility(this, intent, connection)
-    }
-
-    private fun startUnityPlayer() {
-        try {
-            val unityPlayerClass = Class.forName(UNITY_ACTIVITY_NAME);
-            val intent = Intent(this, unityPlayerClass)
-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            startActivity(intent)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+    override fun onDestroy() {
+        super.onDestroy()
+        resultServiceProxy?.disconnect(deviceId ?: return)
     }
 
     private val binder = object : IGameInterface.Stub() {
@@ -88,31 +51,20 @@ class GameService : Service() {
             }
             connectToHarmonyService {
                 it.connect(deviceId)
+                this@GameService.deviceId = deviceId
             }
-            application.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
-                override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+            mApplication?.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
+                override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
 
-                }
+                override fun onActivityStarted(activity: Activity) {}
 
-                override fun onActivityStarted(activity: Activity) {
+                override fun onActivityResumed(activity: Activity) {}
 
-                }
+                override fun onActivityPaused(activity: Activity) {}
 
-                override fun onActivityResumed(activity: Activity) {
+                override fun onActivityStopped(activity: Activity) {}
 
-                }
-
-                override fun onActivityPaused(activity: Activity) {
-
-                }
-
-                override fun onActivityStopped(activity: Activity) {
-
-                }
-
-                override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {
-
-                }
+                override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
 
                 override fun onActivityDestroyed(activity: Activity) {
                     if (activity::class.java.simpleName == UNITY_ACTIVITY_NAME) {
@@ -136,18 +88,10 @@ class GameService : Service() {
             )
         }
 
-        override fun buttonPress(deviceId: String, buttonId: String) {
+        override fun buttonClick(deviceId: String, buttonId: String) {
             UnityPlayer.UnitySendMessage(
                 UNITY_GAME_OBJECT_NAME,
-                BUTTON_PRESS,
-                "$deviceId;$buttonId"
-            )
-        }
-
-        override fun buttonRelease(deviceId: String, buttonId: String) {
-            UnityPlayer.UnitySendMessage(
-                UNITY_GAME_OBJECT_NAME,
-                BUTTON_RELEASE,
+                BUTTON_CLICK,
                 "$deviceId;$buttonId"
             )
         }
@@ -158,6 +102,50 @@ class GameService : Service() {
                 REMOVE,
                 deviceId
             )
+        }
+
+        private fun isApplicationRunning(): Boolean {
+            activityManager?.let { activityManager ->
+                val processes = activityManager.runningAppProcesses
+                processes.forEach {
+                    if (it.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
+                        it.pkgList.forEach { process ->
+                            if (process == packageName) {
+                                return true
+                            }
+                        }
+                    }
+                }
+                return false
+            } ?: return false
+        }
+
+        private fun connectToHarmonyService(callback: (ResultServiceProxy) -> Unit)  {
+            val intent = Intent()
+            val componentName = ComponentName(HARMONY_BUNDLE_NAME, HARMONY_ABILITY_NAME)
+            intent.component = componentName
+            val connection = object : ServiceConnection {
+                override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+                    resultServiceProxy = ResultServiceProxy(service)
+                    callback.invoke(resultServiceProxy ?: return)
+                }
+
+                override fun onServiceDisconnected(name: ComponentName?) {
+                    resultServiceProxy = null
+                }
+            }
+            AbilityUtils.connectAbility(this@GameService, intent, connection)
+        }
+
+        private fun startUnityPlayer() {
+            try {
+                val unityPlayerClass = Class.forName(UNITY_ACTIVITY_NAME);
+                val intent = Intent(this@GameService, unityPlayerClass)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                startActivity(intent)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 }
